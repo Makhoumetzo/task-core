@@ -14,7 +14,7 @@
 
     <groupId>sn.isi.l3gl.core</groupId>
     <artifactId>task-core</artifactId>
-    <version>0.3.0</version>
+    <version>0.0.1-SNAPSHOT</version>
     <name>task-core</name>
     <description>Module métier pour la gestion de tâches</description>
 
