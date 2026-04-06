@@ -71,23 +71,6 @@ services:
     command: -config.file=/etc/loki/loki-config.yml
     restart: unless-stopped
 
-  # ── Promtail ───────────────────────────────────────────────────────────────
-  # Agent de logs : lit les logs Docker et les envoie à Loki
-  # C'est le "facteur" qui récupère les logs et les livre à Loki
-  promtail:
-    image: grafana/promtail:2.9.4
-    container_name: promtail
-    volumes:
-      # Config de Promtail
-      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
-      # Accès aux logs Docker du host (pour lire les logs des conteneurs)
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/promtail-config.yml
-    depends_on:
-      - loki
-    restart: unless-stopped
-
 # ── Volumes nommés ───────────────────────────────────────────────────────────
 # Les volumes nommés persistent les données même si les conteneurs sont supprimés
 volumes:
