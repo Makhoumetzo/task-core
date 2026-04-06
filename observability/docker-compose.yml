@@ -1,0 +1,96 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# docker-compose.yml — Stack de monitoring (VM 2)
+# ══════════════════════════════════════════════════════════════════════════════
+# Lance 4 services :
+#   1. Prometheus (port 9090) — Collecte les métriques de l'app
+#   2. Grafana (port 3000)    — Affiche les dashboards
+#   3. Loki (port 3100)       — Centralise les logs
+#   4. Promtail               — Agent qui envoie les logs à Loki
+#
+# Commande : docker compose up -d
+# ══════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Prometheus ─────────────────────────────────────────────────────────────
+  # Collecteur de métriques : scrape /actuator/prometheus de l'app Spring Boot
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus
+    ports:
+      # Interface web accessible sur http://localhost:9090
+      - "9090:9090"
+    volumes:
+      # On monte notre fichier de config dans le conteneur
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      # Volume pour persister les données de métriques
+      - prometheus-data:/prometheus
+    # Commande de démarrage avec la config et la rétention des données (15 jours)
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    restart: unless-stopped
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  # Tableau de bord : visualise les métriques (Prometheus) et les logs (Loki)
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: grafana
+    ports:
+      # Interface web accessible sur http://localhost:3000
+      - "3000:3000"
+    environment:
+      # Identifiants par défaut (à changer en production)
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      # Configuration automatique des datasources (Prometheus + Loki)
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      # Volume pour persister les dashboards créés
+      - grafana-data:/var/lib/grafana
+    # Grafana a besoin que Prometheus et Loki soient démarrés avant
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+  # ── Loki ───────────────────────────────────────────────────────────────────
+  # Centralisateur de logs : stocke les logs envoyés par Promtail
+  # C'est comme un "Prometheus" mais pour les logs
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    ports:
+      # API Loki (Promtail et Grafana se connectent ici)
+      - "3100:3100"
+    volumes:
+      # Fichier de configuration de Loki
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+      # Volume pour persister les logs indexés
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    restart: unless-stopped
+
+  # ── Promtail ───────────────────────────────────────────────────────────────
+  # Agent de logs : lit les logs Docker et les envoie à Loki
+  # C'est le "facteur" qui récupère les logs et les livre à Loki
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    volumes:
+      # Config de Promtail
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      # Accès aux logs Docker du host (pour lire les logs des conteneurs)
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+# ── Volumes nommés ───────────────────────────────────────────────────────────
+# Les volumes nommés persistent les données même si les conteneurs sont supprimés
+volumes:
+  prometheus-data:    # Métriques Prometheus
+  grafana-data:       # Dashboards et config Grafana
+  loki-data:          # Logs stockés par Loki

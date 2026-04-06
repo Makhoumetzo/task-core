@@ -1,0 +1,25 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# mysql-pvc.yaml — Stockage persistant pour MySQL
+# ══════════════════════════════════════════════════════════════════════════════
+# Sans PersistentVolumeClaim, les données MySQL sont perdues si le Pod
+# redémarre. Le PVC réserve un espace disque qui survit aux redémarrages.
+#
+# Fonctionnement :
+#   PVC (demande) → PV (volume réel sur le disque) → Pod MySQL (utilise)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  labels:
+    app: task-core
+    component: database
+spec:
+  # ReadWriteOnce = un seul Pod peut lire/écrire à la fois
+  # (suffisant car on a 1 seul réplica MySQL)
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # On réserve 1 Go de stockage pour la base de données
+      storage: 1Gi

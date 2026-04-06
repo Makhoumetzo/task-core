@@ -1,0 +1,57 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# loki-config.yml — Configuration de Loki
+# ══════════════════════════════════════════════════════════════════════════════
+# Loki est un système d'agrégation de logs (comme ELK mais plus léger).
+# Il stocke et indexe les logs pour les rendre consultables dans Grafana.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Authentification désactivée (environnement de développement)
+auth_enabled: false
+
+server:
+  # Port HTTP de l'API Loki
+  http_listen_port: 3100
+
+# ── Ingester ─────────────────────────────────────────────────────────────────
+# L'ingester reçoit les logs et les écrit sur le disque
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        # Mode standalone (pas de cluster)
+        store: inmemory
+      replication_factor: 1
+  # Durée avant de forcer l'écriture des logs en mémoire sur le disque
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+
+# ── Schema ───────────────────────────────────────────────────────────────────
+# Définit comment les logs sont indexés et stockés
+schema_config:
+  configs:
+    - from: 2020-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# ── Storage ──────────────────────────────────────────────────────────────────
+# Les logs sont stockés sur le système de fichiers local
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+  filesystem:
+    directory: /loki/chunks
+
+# ── Limits ───────────────────────────────────────────────────────────────────
+limits_config:
+  # Rejeter les logs arrivant dans le désordre (utile en dev)
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+# ── Compactor ────────────────────────────────────────────────────────────────
+compactor:
+  working_directory: /loki/compactor

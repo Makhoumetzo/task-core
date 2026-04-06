@@ -1,0 +1,27 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# app-configmap.yaml — Configuration non-sensible de l'application
+# ══════════════════════════════════════════════════════════════════════════════
+# Le ConfigMap stocke les paramètres de configuration qui ne sont PAS
+# des secrets. Cela permet de changer la config sans reconstruire l'image.
+#
+# Ces variables sont injectées dans le conteneur via envFrom dans le
+# Deployment, et lues par Spring Boot grâce à la syntaxe ${VARIABLE}
+# dans application.yaml
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configmap
+  labels:
+    app: task-core
+    component: backend
+data:
+  # Hôte MySQL = le nom du Service Kubernetes (DNS interne du cluster)
+  # Spring Boot lira ${MYSQL_HOST} dans application.yaml
+  MYSQL_HOST: "mysql-service"
+
+  # Port MySQL standard
+  MYSQL_PORT: "3306"
+
+  # Nom de la base de données
+  MYSQL_DATABASE: "taskmanager_db"

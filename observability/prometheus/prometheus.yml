@@ -1,0 +1,41 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# prometheus.yml — Configuration de Prometheus
+# ══════════════════════════════════════════════════════════════════════════════
+# Ce fichier dit à Prometheus :
+#   - À quels endpoints aller chercher les métriques (targets)
+#   - À quelle fréquence les récupérer (scrape_interval)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Paramètres globaux
+global:
+  # Scraper les métriques toutes les 15 secondes
+  scrape_interval: 15s
+  # Évaluer les règles d'alerte toutes les 15 secondes
+  evaluation_interval: 15s
+
+# ── Jobs de scraping ─────────────────────────────────────────────────────────
+# Chaque "job" est un groupe de cibles à scraper
+scrape_configs:
+
+  # Job 1 : Prometheus se scrape lui-même (pour surveiller son propre état)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Job 2 : Scraper l'application Spring Boot task-core
+  # L'app expose ses métriques sur /actuator/prometheus grâce à
+  # spring-boot-starter-actuator + micrometer-registry-prometheus
+  - job_name: 'task-core'
+    # L'endpoint des métriques n'est pas à la racine "/"
+    # mais à "/actuator/prometheus"
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      # ⚠️ REMPLACER <VM1_IP> par l'IP de la VM 1 (Minikube)
+      # Si test en local : utiliser host.docker.internal:8085
+      # Si VMs séparées : utiliser l'IP de la VM 1
+      # Exemple : - targets: ['192.168.1.100:8085']
+      - targets: ['host.docker.internal:8085']
+        labels:
+          application: 'task-core'
+          environment: 'production'

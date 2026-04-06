@@ -1,0 +1,125 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# .gitlab-ci.yml — Pipeline CI/CD pour task-core
+# ══════════════════════════════════════════════════════════════════════════════
+# Ce pipeline s'exécute automatiquement à chaque git push.
+# Il comporte 3 stages qui s'exécutent dans l'ordre :
+#   1. test   → Exécuter les tests unitaires Maven
+#   2. build  → Compiler le projet et créer le JAR
+#   3. docker → Construire et pousser l'image Docker sur Docker Hub
+#
+# Si un stage échoue, les suivants ne s'exécutent pas.
+#
+# Variables à configurer dans GitLab (Settings > CI/CD > Variables) :
+#   - DOCKERHUB_USER  : votre nom d'utilisateur Docker Hub (makhoumetzo)
+#   - DOCKERHUB_TOKEN : votre token d'accès Docker Hub (masqué)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Définition des 3 stages (dans l'ordre d'exécution) ───────────────────────
+stages:
+  - test
+  - build
+  - docker
+
+# ── Variables globales ───────────────────────────────────────────────────────
+variables:
+  # Désactive le mode interactif de Maven
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  # Nom de l'image Docker sur Docker Hub
+  DOCKER_IMAGE: "makhoumetzo/task-core"
+
+# ── Cache Maven ──────────────────────────────────────────────────────────────
+# Met en cache les dépendances Maven entre les pipelines pour accélérer les builds
+cache:
+  paths:
+    - .m2/repository/
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 1 : TEST — Exécuter les tests unitaires
+# ══════════════════════════════════════════════════════════════════════════════
+# But : Vérifier que le code compile et que tous les tests passent.
+# Si les tests échouent, le pipeline s'arrête ici.
+test:
+  stage: test
+  # Image Docker utilisée par le runner GitLab pour exécuter ce job
+  image: maven:3.9-eclipse-temurin-21
+  # Service MySQL nécessaire pour les tests (Spring Boot a besoin d'une BDD)
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: rootpass123
+        MYSQL_DATABASE: taskmanager_db
+        MYSQL_USER: taskapp
+        MYSQL_PASSWORD: taskpass123
+  variables:
+    # Spring Boot utilisera ce MySQL (le service ci-dessus) pendant les tests
+    MYSQL_HOST: mysql
+    MYSQL_PORT: "3306"
+    MYSQL_DATABASE: taskmanager_db
+    MYSQL_USER: taskapp
+    MYSQL_PASSWORD: taskpass123
+  script:
+    # Exécuter tous les tests unitaires (-B = mode batch, pas de sortie interactive)
+    - mvn test -B
+  # Ce stage s'exécute uniquement sur la branche develop
+  only:
+    - develop
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 2 : BUILD — Créer le fichier JAR
+# ══════════════════════════════════════════════════════════════════════════════
+# But : Compiler le projet et produire le fichier .jar exécutable.
+# Le JAR est sauvegardé comme "artifact" pour être réutilisé au stage docker.
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    # Compiler et packager (sans relancer les tests, déjà faits au stage 1)
+    - mvn clean package -DskipTests -B
+  # Sauvegarder le JAR comme artifact GitLab
+  # Cela permet au stage suivant (docker) de récupérer le JAR
+  artifacts:
+    paths:
+      - target/*.jar
+    # Garder l'artifact pendant 1 jour (on n'en a besoin que pour le pipeline)
+    expire_in: 1 day
+  only:
+    - develop
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 3 : DOCKER — Construire et pousser l'image Docker
+# ══════════════════════════════════════════════════════════════════════════════
+# But : Construire l'image Docker et la pousser sur Docker Hub.
+# Ce stage utilise Docker-in-Docker (DinD) pour exécuter docker build
+# à l'intérieur du runner GitLab.
+#
+# ⚠️ Ce stage ne s'exécute QUE sur les tags Git (pas sur chaque commit)
+# Exemple : git tag 0.4.0 && git push --tags
+docker:
+  stage: docker
+  image: docker:24.0
+  # Docker-in-Docker : permet d'utiliser Docker dans un conteneur Docker
+  services:
+    - docker:24.0-dind
+  variables:
+    # Connexion au service DinD
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    # Se connecter à Docker Hub avec les variables CI/CD (configurées dans GitLab)
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+  script:
+    # Construire l'image Docker avec le commit SHA comme version
+    # $CI_COMMIT_SHORT_SHA = le commit hash (ex: "a1b2c3d4")
+    - docker build -t $DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA .
+    # Taguer aussi comme "latest" (dernière version stable)
+    - docker tag $DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA $DOCKER_IMAGE:latest
+    # Pousser les 2 tags sur Docker Hub
+    - docker push $DOCKER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $DOCKER_IMAGE:latest
+  after_script:
+    # Se déconnecter de Docker Hub (bonne pratique de sécurité)
+    - docker logout
+    # ⚠️ Ne s'exécute QUE sur la branche develop
+  only:
+    - develop

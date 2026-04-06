@@ -1,0 +1,30 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# datasources.yml — Provisionnement automatique des datasources Grafana
+# ══════════════════════════════════════════════════════════════════════════════
+# Ce fichier connecte automatiquement Grafana à Prometheus et Loki
+# au premier démarrage. Pas besoin de configurer manuellement dans l'UI !
+#
+# Sans ce fichier, il faudrait aller dans Grafana > Settings > Data Sources
+# et ajouter Prometheus et Loki à la main.
+# ══════════════════════════════════════════════════════════════════════════════
+
+apiVersion: 1
+
+datasources:
+  # ── Prometheus (métriques) ───────────────────────────────────────────────
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # URL interne Docker (nom du service dans docker-compose)
+    url: http://prometheus:9090
+    # Datasource par défaut pour les dashboards
+    isDefault: true
+    editable: true
+
+  # ── Loki (logs) ──────────────────────────────────────────────────────────
+  - name: Loki
+    type: loki
+    access: proxy
+    # URL interne Docker (nom du service dans docker-compose)
+    url: http://loki:3100
+    editable: true

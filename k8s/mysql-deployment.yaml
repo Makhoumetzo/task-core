@@ -1,0 +1,103 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# mysql-deployment.yaml — Déploiement de MySQL + Service
+# ══════════════════════════════════════════════════════════════════════════════
+# Ce fichier contient 2 ressources séparées par "---" :
+#   1. Deployment : crée et gère le Pod MySQL
+#   2. Service : donne un nom DNS stable (mysql-service) pour que
+#      l'application Spring Boot puisse se connecter à MySQL
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Deployment MySQL ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: task-core
+    component: database
+spec:
+  # 1 seul réplica : MySQL n'est pas fait pour être répliqué simplement
+  replicas: 1
+  selector:
+    # Le Deployment gère les Pods qui ont le label "component: database"
+    matchLabels:
+      component: database
+  template:
+    metadata:
+      labels:
+        app: task-core
+        component: database
+    spec:
+      containers:
+        - name: mysql
+          # Image officielle MySQL 8.0
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          # Variables d'environnement pour configurer MySQL au démarrage
+          env:
+            # Mot de passe root MySQL (lu depuis le Secret)
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            # Nom de la base de données à créer automatiquement
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-database
+            # Utilisateur MySQL à créer (avec accès à MYSQL_DATABASE)
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            # Mot de passe de cet utilisateur
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+          # Monter le volume persistant pour les données MySQL
+          volumeMounts:
+            - name: mysql-storage
+              # /var/lib/mysql = dossier où MySQL stocke ses données
+              mountPath: /var/lib/mysql
+          # Ressources allouées au conteneur
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        # Lier le volume au PVC créé dans mysql-pvc.yaml
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+
+---
+
+# ── Service MySQL ────────────────────────────────────────────────────────────
+# Le Service donne un nom DNS stable "mysql-service" au Pod MySQL.
+# L'application se connecte à "mysql-service:3306" au lieu d'une IP éphémère.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  labels:
+    app: task-core
+    component: database
+spec:
+  # ClusterIP = accessible uniquement depuis l'intérieur du cluster
+  # (MySQL ne doit pas être exposé à l'extérieur)
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    # Route le trafic vers les Pods ayant le label "component: database"
+    component: database

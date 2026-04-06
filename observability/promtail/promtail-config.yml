@@ -1,0 +1,50 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# promtail-config.yml — Configuration de Promtail
+# ══════════════════════════════════════════════════════════════════════════════
+# Promtail est l'agent qui :
+#   1. Lit les logs des conteneurs Docker
+#   2. Les envoie à Loki pour stockage et indexation
+#
+# C'est le "facteur" : il récupère les logs et les livre à Loki.
+# ══════════════════════════════════════════════════════════════════════════════
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+# ── Où envoyer les logs ──────────────────────────────────────────────────────
+clients:
+  # URL de l'API Loki (nom du service dans Docker Compose)
+  - url: http://loki:3100/loki/api/v1/push
+
+# ── Positions ────────────────────────────────────────────────────────────────
+# Fichier qui garde en mémoire la position de lecture dans chaque fichier de log
+# Permet de reprendre la lecture après un redémarrage sans doublons
+positions:
+  filename: /tmp/positions.yaml
+
+# ── Sources de logs à surveiller ─────────────────────────────────────────────
+scrape_configs:
+  # Job 1 : Logs des conteneurs Docker
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          # Chemin des logs Docker sur le host
+          __path__: /var/lib/docker/containers/**/*.log
+
+    # Pipeline de traitement des logs
+    pipeline_stages:
+      # Parser le format JSON des logs Docker
+      - docker: {}
+
+  # Job 2 : Logs système
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          __path__: /var/log/*.log

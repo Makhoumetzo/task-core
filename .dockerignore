@@ -1,0 +1,37 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# .dockerignore — Fichiers exclus du contexte de build Docker
+# Rôle : accélérer le build et éviter de copier des fichiers inutiles
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Dossier target (déjà compilé en local, sera recompilé dans Docker)
+target/
+
+# Fichiers Git (pas besoin dans l'image)
+.git/
+.gitignore
+.gitattributes
+
+# Configuration IDE (IntelliJ, VS Code)
+.idea/
+.vscode/
+*.iml
+
+# Fichiers Maven wrapper (le stage build a déjà Maven)
+.mvn/
+mvnw
+mvnw.cmd
+
+# Documentation et fichiers non nécessaires au build
+*.md
+*.pdf
+*.png
+projet_devops/
+
+# Docker lui-même (éviter la récursion)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Fichiers Python temporaires
+*.py
+__pycache__/
