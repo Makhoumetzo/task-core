@@ -10,8 +10,9 @@
 # Si un stage échoue, les suivants ne s'exécutent pas.
 #
 # Variables à configurer dans GitLab (Settings > CI/CD > Variables) :
-#   - DOCKERHUB_USER  : votre nom d'utilisateur Docker Hub (makhoumetzo)
-#   - DOCKERHUB_TOKEN : votre token d'accès Docker Hub (masqué)
+#   - DOCKER_USERNAME : votre nom d'utilisateur Docker Hub (makhoumetzo)
+#   - DOCKER_PASSWORD : votre mot de passe Docker Hub
+#   - DOCKER_IMAGE    : makhoumetzo/task-core
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── Définition des 3 stages (dans l'ordre d'exécution) ───────────────────────
@@ -24,8 +25,6 @@ stages:
 variables:
   # Désactive le mode interactif de Maven
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
-  # Nom de l'image Docker sur Docker Hub
-  DOCKER_IMAGE: "makhoumetzo/task-core"
 
 # ── Cache Maven ──────────────────────────────────────────────────────────────
 # Met en cache les dépendances Maven entre les pipelines pour accélérer les builds
@@ -104,7 +103,7 @@ docker:
     DOCKER_TLS_CERTDIR: "/certs"
   before_script:
     # Se connecter à Docker Hub avec les variables CI/CD (configurées dans GitLab)
-    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     # Construire l'image Docker avec le commit SHA comme version
     # $CI_COMMIT_SHORT_SHA = le commit hash (ex: "a1b2c3d4")
