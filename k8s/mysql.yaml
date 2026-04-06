@@ -1,0 +1,122 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# mysql.yaml — Ressources pour la base de données
+# Contient : Namespace, Secret, PersistentVolumeClaim, Deployment, Service
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── 1. Création du Namespace ─────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-l3gl
+
+---
+
+# ── 2. Secret MySQL ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: database
+type: Opaque
+data:
+  # Valeurs en base64 (rootpass123, taskapp, taskpass123, taskmanager_db)
+  mysql-root-password: cm9vdHBhc3MxMjM=
+  mysql-user: dGFza2FwcA==
+  mysql-password: dGFza3Bhc3MxMjM=
+  mysql-database: dGFza21hbmFnZXJfZGI=
+
+---
+
+# ── 3. PersistentVolumeClaim MySQL ───────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+# ── 4. Deployment MySQL ──────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: database
+  template:
+    metadata:
+      labels:
+        app: task-core
+        component: database
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-database
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+
+---
+
+# ── 5. Service MySQL ─────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    component: database

@@ -1,0 +1,129 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# l3gl-devops.yaml — Ressources pour l'application Spring Boot
+# Contient : ConfigMap, Deployment, Service, Ingress
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── 1. ConfigMap App ─────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configmap
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: backend
+data:
+  MYSQL_HOST: "mysql-service"
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: "taskmanager_db"
+
+---
+
+# ── 2. Deployment App ────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: task-core
+        component: backend
+    spec:
+      containers:
+        - name: task-core
+          image: makhoumetzo/task-core:latest
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: app-configmap
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+          
+          # Sondes (Probes) configurées spécifiquement avec les nouveaux endpoints
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8085
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          
+          # Limites de ressources exactes demandées
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "250Mi"
+            limits:
+              cpu: "400m"
+              memory: "500Mi"
+
+---
+
+# ── 3. Service App ───────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8085
+      targetPort: 8085
+      protocol: TCP
+  selector:
+    component: backend
+
+---
+
+# ── 4. Ingress ───────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-ingress
+  namespace: devops-l3gl
+  labels:
+    app: task-core
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: task.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-service
+                port:
+                  number: 8085
