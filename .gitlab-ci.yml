@@ -46,11 +46,6 @@ test:
   services:
     - name: mysql:8.0
       alias: mysql
-      variables:
-        MYSQL_ROOT_PASSWORD: rootpass123
-        MYSQL_DATABASE: taskmanager_db
-        MYSQL_USER: taskapp
-        MYSQL_PASSWORD: taskpass123
   variables:
     # Spring Boot utilisera ce MySQL (le service ci-dessus) pendant les tests
     MYSQL_HOST: mysql
@@ -58,6 +53,8 @@ test:
     MYSQL_DATABASE: taskmanager_db
     MYSQL_USER: taskapp
     MYSQL_PASSWORD: taskpass123
+    # Variables pour initialiser le conteneur MySQL
+    MYSQL_ROOT_PASSWORD: rootpass123
   script:
     # Exécuter tous les tests unitaires (-B = mode batch, pas de sortie interactive)
     - mvn test -B
