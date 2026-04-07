@@ -26,16 +26,12 @@ scrape_configs:
   # L'app expose ses métriques sur /actuator/prometheus grâce à
   # spring-boot-starter-actuator + micrometer-registry-prometheus
   - job_name: 'task-core'
-    # L'endpoint des métriques n'est pas à la racine "/"
-    # mais à "/actuator/prometheus"
-    metrics_path: '/actuator/prometheus'
+    # L'endpoint des métriques via le reverse proxy Nginx
+    metrics_path: '/l3gl/actuator/prometheus'
     scrape_interval: 10s
     static_configs:
-      # ⚠️ REMPLACER <VM1_IP> par l'IP de la VM 1 (Minikube)
-      # Si test en local : utiliser host.docker.internal:8085
-      # Si VMs séparées : utiliser l'IP de la VM 1
-      # Exemple : - targets: ['192.168.1.100:8085']
-      - targets: ['host.docker.internal:8085']
+      # Pointeur vers le Nginx de Pop!_OS (VM 1)
+      - targets: ['192.168.1.15']
         labels:
           application: 'task-core'
           environment: 'production'

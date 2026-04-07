@@ -7,8 +7,8 @@
 
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
-            <!-- L'adresse de la VM 2 (Monitoring). En local avec Docker, host.docker.internal ou le nom du conteneur loki -->
-            <url>http://loki:3100/loki/api/v1/push</url>
+            <!-- L'adresse de la VM 2 (Monitoring WSL2 Ubuntu) -->
+            <url>http://172.27.12.18:3100/loki/api/v1/push</url>
         </http>
         <format>
             <label>
