@@ -30,8 +30,8 @@ scrape_configs:
     metrics_path: '/l3gl/actuator/prometheus'
     scrape_interval: 10s
     static_configs:
-      # Pointeur vers le Nginx de Pop!_OS (VM 1)
-      - targets: ['192.168.1.15']
+      # Pointeur vers le Nginx de Debian WSL (VM 1)
+      - targets: ['172.27.12.18']
         labels:
           application: 'task-core'
           environment: 'production'
