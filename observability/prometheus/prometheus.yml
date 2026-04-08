@@ -31,7 +31,7 @@ scrape_configs:
     scrape_interval: 10s
     static_configs:
       # Pointeur vers le Nginx de Debian WSL (VM 1)
-      - targets: ['172.27.12.18']
+      - targets: ['host-gateway:8088']
         labels:
           application: 'task-core'
           environment: 'production'

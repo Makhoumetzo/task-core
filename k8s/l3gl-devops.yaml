@@ -42,6 +42,7 @@ spec:
       containers:
         - name: task-core
           image: makhoumetzo/task-core:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8085
           envFrom:

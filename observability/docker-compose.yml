@@ -18,8 +18,9 @@ services:
     image: prom/prometheus:v2.51.0
     container_name: prometheus
     ports:
-      # Interface web accessible sur http://localhost:9090
       - "9090:9090"
+    extra_hosts:
+      - "host-gateway:host-gateway"
     volumes:
       # On monte notre fichier de config dans le conteneur
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -60,6 +61,7 @@ services:
   loki:
     image: grafana/loki:2.9.4
     container_name: loki
+    user: "0"
     ports:
       # API Loki (Promtail et Grafana se connectent ici)
       - "3100:3100"
